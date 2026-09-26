@@ -1,0 +1,355 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  BUYER
+  ARTIST
+  PARTNER_ARTIST
+  ADMIN
+  SUPER_ADMIN
+}
+
+enum ArtistStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+}
+
+enum ArtworkCategory {
+  PAINTING
+  GRAPHICS
+  PHOTOGRAPHY
+  SCULPTURE
+  DIGITAL_ART
+  NFT
+  PRINT
+  OTHER
+}
+
+enum ArtworkType {
+  ORIGINAL
+  PRINT
+  DIGITAL
+  NFT
+}
+
+enum ArtworkStatus {
+  DRAFT
+  PENDING_REVIEW
+  PUBLISHED
+  SOLD
+  REMOVED
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  REFUNDED
+  DISPUTED
+}
+
+enum DeliveryType {
+  SHIPPING
+  PICKUP
+  DIGITAL
+}
+
+enum PaymentStatus {
+  UNPAID
+  PAID
+  REFUNDED
+  PARTIAL_REFUND
+}
+
+enum TransactionType {
+  PAYMENT
+  COMMISSION
+  PAYOUT
+  REFUND
+}
+
+enum TransactionStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+model User {
+  id           String    @id @default(uuid())
+  email        String    @unique
+  password     String?
+  role         Role      @default(BUYER)
+  isActive     Boolean   @default(true)
+  isVerified   Boolean   @default(false)
+  refreshToken String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  profile   UserProfile?
+  artist    Artist?
+  orders    Order[]
+  favorites Favorite[]
+  reviews   Review[]
+
+  @@map("users")
+}
+
+model UserProfile {
+  id        String  @id @default(uuid())
+  userId    String  @unique
+  firstName String?
+  lastName  String?
+  phone     String?
+  avatarUrl String?
+  country   String?
+  city      String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_profiles")
+}
+
+model Artist {
+  id             String       @id @default(uuid())
+  userId         String       @unique
+  displayName    String
+  slug           String       @unique
+  bio            String?      @db.Text
+  avatarUrl      String?
+  coverUrl       String?
+  specialization String[]
+  status         ArtistStatus @default(PENDING)
+  isVerified     Boolean      @default(false)
+  commissionRate Float?
+  viewCount      Int          @default(0)
+
+  // Social links
+  instagram String?
+  facebook  String?
+  pinterest String?
+  vk        String?
+  telegram  String?
+  tiktok    String?
+  youtube   String?
+  website   String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  artworks       Artwork[]
+  payoutSettings PayoutSettings?
+  stats          ArtistStats?
+
+  @@map("artists")
+}
+
+model Artwork {
+  id          String        @id @default(uuid())
+  artistId    String
+  title       String
+  slug        String        @unique
+  description String?       @db.Text
+  category    ArtworkCategory
+  technique   String?
+  materials   String?
+  style       String?
+  tags        String[]
+  width       Float?
+  height      Float?
+  depth       Float?
+  weight      Float?
+  year        Int?
+  price       Decimal       @db.Decimal(12, 2)
+  currency    String        @default("RUB")
+  type        ArtworkType
+  status      ArtworkStatus @default(DRAFT)
+  quantity    Int?
+  isSold      Boolean       @default(false)
+  videoUrl    String?
+  hasCertificate     Boolean @default(false)
+  nftTokenId         String?
+  nftContractAddress String?
+  viewCount   Int           @default(0)
+  favoriteCount Int         @default(0)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  artist     Artist         @relation(fields: [artistId], references: [id], onDelete: Cascade)
+  images     ArtworkImage[]
+  orderItems OrderItem[]
+  favorites  Favorite[]
+
+  @@map("artworks")
+}
+
+model ArtworkImage {
+  id        String  @id @default(uuid())
+  artworkId String
+  url       String
+  thumbUrl  String?
+  alt       String?
+  order     Int     @default(0)
+
+  artwork Artwork @relation(fields: [artworkId], references: [id], onDelete: Cascade)
+
+  @@map("artwork_images")
+}
+
+model Order {
+  id               String        @id @default(uuid())
+  orderNumber      String        @unique
+  userId           String
+  status           OrderStatus   @default(PENDING)
+  deliveryType     DeliveryType
+  deliveryAddress  Json?
+  deliveryPrice    Decimal?      @db.Decimal(12, 2)
+  trackingNumber   String?
+  totalAmount      Decimal       @db.Decimal(12, 2)
+  commissionAmount Decimal       @db.Decimal(12, 2)
+  artistAmount     Decimal       @db.Decimal(12, 2)
+  paymentId        String?
+  paymentStatus    PaymentStatus @default(UNPAID)
+  paymentMethod    String?
+  stripeSessionId  String?
+  notes            String?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  user         User          @relation(fields: [userId], references: [id])
+  items        OrderItem[]
+  transactions Transaction[]
+
+  @@map("orders")
+}
+
+model OrderItem {
+  id        String  @id @default(uuid())
+  orderId   String
+  artworkId String
+  title     String
+  price     Decimal @db.Decimal(12, 2)
+  quantity  Int     @default(1)
+
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  artwork Artwork @relation(fields: [artworkId], references: [id])
+
+  @@map("order_items")
+}
+
+model Transaction {
+  id         String            @id @default(uuid())
+  orderId    String?
+  artistId   String?
+  type       TransactionType
+  amount     Decimal           @db.Decimal(12, 2)
+  currency   String            @default("RUB")
+  status     TransactionStatus @default(PENDING)
+  externalId String?
+  metadata   Json?
+  createdAt  DateTime          @default(now())
+
+  order Order? @relation(fields: [orderId], references: [id])
+
+  @@map("transactions")
+}
+
+model PayoutSettings {
+  id          String  @id @default(uuid())
+  artistId    String  @unique
+  bankAccount String?
+  bankName    String?
+  cardNumber  String?
+  walletType  String?
+  walletId    String?
+
+  artist Artist @relation(fields: [artistId], references: [id], onDelete: Cascade)
+
+  @@map("payout_settings")
+}
+
+model ArtistStats {
+  id           String  @id @default(uuid())
+  artistId     String  @unique
+  totalViews   Int     @default(0)
+  totalSales   Int     @default(0)
+  totalRevenue Decimal @default(0) @db.Decimal(12, 2)
+
+  artist Artist @relation(fields: [artistId], references: [id], onDelete: Cascade)
+
+  @@map("artist_stats")
+}
+
+model PlatformSettings {
+  id          String  @id @default(uuid())
+  key         String  @unique
+  value       String
+  description String?
+
+  @@map("platform_settings")
+}
+
+model Banner {
+  id        String   @id @default(uuid())
+  title     String
+  subtitle  String?
+  imageUrl  String
+  linkUrl   String?
+  order     Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  @@map("banners")
+}
+
+model Favorite {
+  id        String   @id @default(uuid())
+  userId    String
+  artworkId String
+  createdAt DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  artwork Artwork @relation(fields: [artworkId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, artworkId])
+  @@map("favorites")
+}
+
+model Review {
+  id        String   @id @default(uuid())
+  userId    String
+  artistId  String
+  rating    Int
+  comment   String?  @db.Text
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("reviews")
+}
+
+model Category {
+  id          String    @id @default(uuid())
+  name        String
+  nameEn      String?
+  slug        String    @unique
+  description String?
+  imageUrl    String?
+  order       Int       @default(0)
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+
+  @@map("categories")
+}

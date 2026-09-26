@@ -1,0 +1,118 @@
+###############################################################################
+# Mikheyeva Art Gallery — docker-compose
+# Domain: mikheyeva.art
+###############################################################################
+
+services:
+  # ── PostgreSQL ───────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:15-alpine
+    container_name: mikheyeva_postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-mikheyeva}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-mikheyeva_secret}
+      POSTGRES_DB: ${POSTGRES_DB:-mikheyeva_art}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5434:5432"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-mikheyeva} -d ${POSTGRES_DB:-mikheyeva_art}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - internal
+
+  # ── Redis ─────────────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: mikheyeva_redis
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-mikheyeva_redis}
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6381:6379"
+    restart: unless-stopped
+    networks:
+      - internal
+
+  # ── Meilisearch ───────────────────────────────────────────────────────────────
+  meilisearch:
+    image: getmeili/meilisearch:v1.7
+    container_name: mikheyeva_meilisearch
+    environment:
+      MEILI_MASTER_KEY: ${MEILISEARCH_KEY:-meili_secret_key}
+      MEILI_NO_ANALYTICS: "true"
+    volumes:
+      - meilisearch_data:/meili_data
+    ports:
+      - "7710:7700"
+    restart: unless-stopped
+    networks:
+      - internal
+
+  # ── NestJS Backend ────────────────────────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: mikheyeva_backend
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-mikheyeva}:${POSTGRES_PASSWORD:-mikheyeva_secret}@postgres:5432/${POSTGRES_DB:-mikheyeva_art}
+      REDIS_URL: redis://:${REDIS_PASSWORD:-mikheyeva_redis}@redis:6379/0
+      MEILISEARCH_HOST: http://meilisearch:7700
+      UPLOAD_DIR: /app/uploads
+    volumes:
+      - uploads_data:/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "3"
+    networks:
+      - internal
+      - medmind_external
+
+  # ── Next.js Frontend ──────────────────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: https://mikheyeva.art/api/v1
+    container_name: mikheyeva_frontend
+    environment:
+      NEXT_PUBLIC_API_URL: https://mikheyeva.art/api/v1
+      NODE_ENV: production
+      HOSTNAME: "0.0.0.0"
+    depends_on:
+      - backend
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - internal
+      - medmind_external
+
+volumes:
+  postgres_data:
+  redis_data:
+  uploads_data:
+  meilisearch_data:
+
+networks:
+  internal:
+    driver: bridge
+    internal: true
+  medmind_external:
+    external: true

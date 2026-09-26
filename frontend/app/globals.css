@@ -1,0 +1,160 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Inter:wght@300;400;500;600;700&display=swap');
+
+@layer base {
+  :root {
+    --background: 40 20% 98%;
+    --foreground: 20 10% 10%;
+    --card: 0 0% 100%;
+    --card-foreground: 20 10% 10%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 20 10% 10%;
+    --primary: 30 45% 45%;
+    --primary-foreground: 40 20% 98%;
+    --secondary: 30 20% 92%;
+    --secondary-foreground: 20 10% 20%;
+    --muted: 30 15% 95%;
+    --muted-foreground: 20 10% 50%;
+    --accent: 30 30% 90%;
+    --accent-foreground: 20 10% 15%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 30 15% 88%;
+    --input: 30 15% 88%;
+    --ring: 30 45% 45%;
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 20 10% 8%;
+    --foreground: 40 20% 95%;
+    --card: 20 10% 10%;
+    --card-foreground: 40 20% 95%;
+    --popover: 20 10% 10%;
+    --popover-foreground: 40 20% 95%;
+    --primary: 30 45% 55%;
+    --primary-foreground: 20 10% 8%;
+    --secondary: 20 10% 15%;
+    --secondary-foreground: 40 20% 90%;
+    --muted: 20 10% 15%;
+    --muted-foreground: 30 10% 60%;
+    --accent: 20 10% 18%;
+    --accent-foreground: 40 20% 90%;
+    --destructive: 0 62% 50%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 20 10% 18%;
+    --input: 20 10% 18%;
+    --ring: 30 45% 55%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: var(--font-inter), system-ui, sans-serif;
+  }
+
+  h1, h2, h3, h4 {
+    font-family: var(--font-playfair), Georgia, serif;
+  }
+}
+
+@layer components {
+  .gallery-container {
+    @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+  }
+
+  .artwork-card {
+    @apply relative overflow-hidden rounded-lg bg-card border border-border transition-all duration-300 hover:shadow-lg hover:-translate-y-1;
+  }
+
+  .artwork-card-image {
+    @apply relative aspect-square overflow-hidden bg-muted;
+  }
+
+  .artwork-card-image img {
+    @apply w-full h-full object-cover transition-transform duration-500;
+  }
+
+  .artwork-card:hover .artwork-card-image img {
+    transform: scale(1.05);
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center rounded-md px-6 py-3 text-sm font-medium
+    bg-primary text-primary-foreground hover:bg-primary/90 transition-colors
+    focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring
+    disabled:pointer-events-none disabled:opacity-50;
+  }
+
+  .btn-outline {
+    @apply inline-flex items-center justify-center rounded-md px-6 py-3 text-sm font-medium
+    border border-input bg-background hover:bg-accent hover:text-accent-foreground transition-colors
+    focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring;
+  }
+
+  .input-field {
+    @apply flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm
+    ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium
+    placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2
+    focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  .badge {
+    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold;
+  }
+
+  .badge-primary {
+    @apply badge bg-primary/10 text-primary;
+  }
+
+  .badge-success {
+    @apply badge bg-green-100 text-green-700;
+  }
+
+  .badge-warning {
+    @apply badge bg-yellow-100 text-yellow-700;
+  }
+
+  .badge-error {
+    @apply badge bg-red-100 text-red-700;
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: hsl(var(--background));
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--border));
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground));
+}
+
+/* Masonry grid */
+.masonry-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1.5rem;
+}
+
+@media (min-width: 1024px) {
+  .masonry-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
