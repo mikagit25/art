@@ -142,6 +142,54 @@ export class AuthService {
     return { success: true };
   }
 
+  async googleLogin(googleUser: {
+    googleId: string;
+    email: string;
+    firstName: string;
+    lastName: string;
+    avatarUrl: string | null;
+  }) {
+    let user = await this.prisma.user.findFirst({
+      where: { OR: [{ googleId: googleUser.googleId }, { email: googleUser.email }] },
+      select: {
+        id: true, email: true, role: true, isActive: true, googleId: true,
+        artist: { select: { id: true, slug: true, status: true } },
+      },
+    });
+
+    if (!user) {
+      user = await this.prisma.user.create({
+        data: {
+          email: googleUser.email,
+          googleId: googleUser.googleId,
+          role: Role.BUYER,
+          isVerified: true,
+          profile: {
+            create: {
+              firstName: googleUser.firstName,
+              lastName: googleUser.lastName,
+              avatarUrl: googleUser.avatarUrl,
+            },
+          },
+        },
+        select: {
+          id: true, email: true, role: true, isActive: true, googleId: true,
+          artist: { select: { id: true, slug: true, status: true } },
+        },
+      });
+    } else if (!user.googleId) {
+      // Existing email account — link Google
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: { googleId: googleUser.googleId, isVerified: true },
+      });
+    }
+
+    if (!user.isActive) throw new UnauthorizedException('Account is deactivated');
+
+    return this.generateTokens(user);
+  }
+
   async getProfile(userId: string) {
     return this.prisma.user.findUnique({
       where: { id: userId },
